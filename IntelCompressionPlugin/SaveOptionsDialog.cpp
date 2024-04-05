@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Copyright 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -18,6 +18,7 @@
 #include <list>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 #include "PIUFile.h"
 #include "SaveOptionsDialog.h"
 #include "IntelPluginName.h"
@@ -64,44 +65,43 @@ ComboAndContextStringID const gComboContextItems[] = {
 #if !__LP64__
 
 
-OptionsDialog::OptionsDialog(IntelPlugin* plugin_) : PIDialog()  
-{ 
+OptionsDialog::OptionsDialog(IntelPlugin* plugin_) : PIDialog()
+{
 	plugin = plugin_;
 	globalParams = plugin->GetData();
 	mPathToPresetDirectory.clear();
-	MaxMipLevel =static_cast<int>(1 + floor(Log2(max((plugin->GetFormatRecord()->imageSize.h),(plugin->GetFormatRecord()->imageSize.v))))); 
+	MaxMipLevel = static_cast<int>(1 + floor(Log2(max((plugin->GetFormatRecord()->imageSize.h), (plugin->GetFormatRecord()->imageSize.v)))));
 
-	/*Get path to Local per user configuration files, %USERPROFILE%\\AppData\Local\\Intel\\PhotoshopDDSPlugin\\ */ 
+	/*Get path to Local per user configuration files, %USERPROFILE%\\AppData\Local\\Intel\\PhotoshopDDSPlugin\\ */
 	wchar_t* localAppData = 0;
-    HRESULT hr = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData);
+	HRESULT hr = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData);
 
 	//Path exists
 	if (SUCCEEDED(hr))
 	{
 		//Convert wide char to char, append name of directory
-  		char str[MAX_PATH+1] = {};
-		wcstombs(str, localAppData, MAX_PATH);
+		mPathToPresetDirectory = localAppData;
+
 		CoTaskMemFree(static_cast<void*>(localAppData));
 
-		mPathToPresetDirectory = str;
-			
+
 		//Free mem
 
 		//Create directory if does not exist
-		mPathToPresetDirectory.append("\\Intel");
-		if (CreateDirectory(mPathToPresetDirectory.c_str(), NULL) ||  ERROR_ALREADY_EXISTS == GetLastError())
+		mPathToPresetDirectory.append(L"\\Intel");
+		if (CreateDirectoryW(mPathToPresetDirectory.c_str(), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
 		{
-			mPathToPresetDirectory.append("\\PhotoshopDDSPlugin\\");
-			if (!(CreateDirectory(mPathToPresetDirectory.c_str(), NULL) ||  ERROR_ALREADY_EXISTS == GetLastError()))
+			mPathToPresetDirectory.append(L"\\PhotoshopDDSPlugin\\");
+			if (!(CreateDirectoryW(mPathToPresetDirectory.c_str(), NULL) || ERROR_ALREADY_EXISTS == GetLastError()))
 			{
-					// Failed to create directory.
-					plugin->UserError("Failed to Create Presets Directory");
+				// Failed to create directory.
+				plugin->UserError("Failed to Create Presets Directory");
 			}
 		}
 		else
 		{
-				// Failed to create directory.
-				plugin->UserError("Failed to Create Presets Directory");
+			// Failed to create directory.
+			plugin->UserError("Failed to Create Presets Directory");
 		}
 
 	}
@@ -113,10 +113,10 @@ OptionsDialog::OptionsDialog(IntelPlugin* plugin_) : PIDialog()
 }
 
 // Calculates log2 of number.  
-double OptionsDialog::Log2( double n )  
-{  
-    // log(n)/log(2) is log2.  
-    return log( n ) / log( 2. );  
+double OptionsDialog::Log2(double n)
+{
+	// log(n)/log(2) is log2.  
+	return log(n) / log(2.);
 }
 
 // ===========================================================================
@@ -125,13 +125,13 @@ bool OptionsDialog::LoadPresetNonUIMode(string nameOfPreset)
 	//If not presets directory return with error
 	if (mPathToPresetDirectory.empty())
 		return false;
-	
+
 	//Initialize with defaults
 	InitDataNoPreset(mDialogData);
 
 	//This loads all the settings and the last-used setting
 	LoadPresets();
-	
+
 	InitDataFromPreset(nameOfPreset);
 
 	InitComboItems();
@@ -145,141 +145,141 @@ void OptionsDialog::FillGlobalStruct()
 {
 	//Get the compressionType from the CompressionTypeComboBox, the combo box always has the list of the valid types
 	//The itemUserData has the actual compression enumeration defined in IntelPlugin.h for a given combo box entry
-	int copressionTypeID =  gComboItems[COMPRESSION_COMBO].itemAndContextStrings[mDialogData.CompressionTypeIndex].itemUserData;
+	int copressionTypeID = gComboItems[COMPRESSION_COMBO].itemAndContextStrings[mDialogData.CompressionTypeIndex].itemUserData;
 
 	switch (copressionTypeID)
-		{
-			case CompressionTypeEnum::BC1:globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC1_SRGB:globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM_SRGB;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC3:globalParams->encoding_g = DXGI_FORMAT_BC3_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC3_SRGB:globalParams->encoding_g = DXGI_FORMAT_BC3_UNORM_SRGB;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC6H_FAST:globalParams->encoding_g = DXGI_FORMAT_BC6H_UF16; 
-				globalParams->fast_bc67 = true;
-				break;
-			case CompressionTypeEnum::BC6H_FINE:globalParams->encoding_g = DXGI_FORMAT_BC6H_UF16;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC7_FAST:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM;
-				globalParams->fast_bc67 = true;
-				break;
-			case CompressionTypeEnum::BC7_FINE:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC7_SRGB_FAST:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM_SRGB;
-				globalParams->fast_bc67 = true;
-				break;
-			case CompressionTypeEnum::BC7_SRGB_FINE:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM_SRGB;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC4:globalParams->encoding_g = DXGI_FORMAT_BC4_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::BC5:globalParams->encoding_g = DXGI_FORMAT_BC5_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			case CompressionTypeEnum::UNCOMPRESSED:globalParams->encoding_g = DXGI_FORMAT_R8G8B8A8_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-			default: globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM;
-				globalParams->fast_bc67 = false;
-				break;
-		}
+	{
+	case CompressionTypeEnum::BC1:globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC1_SRGB:globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM_SRGB;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC3:globalParams->encoding_g = DXGI_FORMAT_BC3_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC3_SRGB:globalParams->encoding_g = DXGI_FORMAT_BC3_UNORM_SRGB;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC6H_FAST:globalParams->encoding_g = DXGI_FORMAT_BC6H_UF16;
+		globalParams->fast_bc67 = true;
+		break;
+	case CompressionTypeEnum::BC6H_FINE:globalParams->encoding_g = DXGI_FORMAT_BC6H_UF16;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC7_FAST:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM;
+		globalParams->fast_bc67 = true;
+		break;
+	case CompressionTypeEnum::BC7_FINE:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC7_SRGB_FAST:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM_SRGB;
+		globalParams->fast_bc67 = true;
+		break;
+	case CompressionTypeEnum::BC7_SRGB_FINE:globalParams->encoding_g = DXGI_FORMAT_BC7_UNORM_SRGB;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC4:globalParams->encoding_g = DXGI_FORMAT_BC4_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::BC5:globalParams->encoding_g = DXGI_FORMAT_BC5_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	case CompressionTypeEnum::UNCOMPRESSED:globalParams->encoding_g = DXGI_FORMAT_R8G8B8A8_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	default: globalParams->encoding_g = DXGI_FORMAT_BC1_UNORM;
+		globalParams->fast_bc67 = false;
+		break;
+	}
 
-		globalParams->TextureTypeIndex = mDialogData.TextureTypeIndex; //Col,Col+alpha,CubeFrmLayera,CubefromCross,NM
-		globalParams->MipMapTypeIndex  = mDialogData.MipMapTypeIndex;  //None,Autogen,FromLayers
-		globalParams->MipLevel      = mDialogData.MipLevel;			   // only valid if SetMipLevel == true
-		globalParams->SetMipLevel   = mDialogData.SetMipLevel;
-		globalParams->Normalize     = mDialogData.Normalize;
-		globalParams->FlipX         = mDialogData.FlipX;
-		globalParams->FlipY         = mDialogData.FlipY;
+	globalParams->TextureTypeIndex = mDialogData.TextureTypeIndex; //Col,Col+alpha,CubeFrmLayera,CubefromCross,NM
+	globalParams->MipMapTypeIndex = mDialogData.MipMapTypeIndex;  //None,Autogen,FromLayers
+	globalParams->MipLevel = mDialogData.MipLevel;			   // only valid if SetMipLevel == true
+	globalParams->SetMipLevel = mDialogData.SetMipLevel;
+	globalParams->Normalize = mDialogData.Normalize;
+	globalParams->FlipX = mDialogData.FlipX;
+	globalParams->FlipY = mDialogData.FlipY;
 
-		//presetBatchName is a PString (first byte is the size), convert C to PString
-		CToPStr(mDialogData.PresetName.c_str(), reinterpret_cast<char *>(globalParams->presetBatchName));
+	//presetBatchName is a PString (first byte is the size), convert C to PString
+	CToPStr(mDialogData.PresetName.c_str(), reinterpret_cast<char*>(globalParams->presetBatchName));
 }
 
 //Fill UI data struct with global plugin struct
 void OptionsDialog::GetGlobalStruct()
 {
-	int CompressionTypeIndex=0;
+	int CompressionTypeIndex = 0;
 	CompressionTypeEnum compressionID;
-	
+
 	//Find compression ID.
 	switch (globalParams->encoding_g)
 	{
-		case DXGI_FORMAT_BC1_UNORM:
-			compressionID = CompressionTypeEnum::BC1;
-			break;
-		case DXGI_FORMAT_BC1_UNORM_SRGB: 
-			compressionID = CompressionTypeEnum::BC1_SRGB;
-			break;
-		case DXGI_FORMAT_BC3_UNORM:      
-			compressionID = CompressionTypeEnum::BC3;
-			break;
-		case DXGI_FORMAT_BC3_UNORM_SRGB: 
-			compressionID = CompressionTypeEnum::BC3_SRGB;
-			break;
-		case DXGI_FORMAT_BC6H_UF16:
-			if (globalParams->fast_bc67)
-				compressionID = CompressionTypeEnum::BC6H_FAST;
-			else 
-				compressionID = CompressionTypeEnum::BC6H_FINE;
-			break;
-		case DXGI_FORMAT_BC7_UNORM:
-			if (globalParams->fast_bc67)
-				compressionID = CompressionTypeEnum::BC7_FAST;
-			else
-				compressionID = CompressionTypeEnum::BC7_FINE;
-			break;
-		case DXGI_FORMAT_BC7_UNORM_SRGB:
-			if (globalParams->fast_bc67)
-				compressionID = CompressionTypeEnum::BC7_SRGB_FAST;
-			else
-				compressionID = CompressionTypeEnum::BC7_SRGB_FINE;
-			break;
-		case DXGI_FORMAT_BC4_UNORM:
-			compressionID = CompressionTypeEnum::BC4;
-			break;
-		case DXGI_FORMAT_BC5_UNORM:
-			compressionID = CompressionTypeEnum::BC5;
-			break;
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-			compressionID = CompressionTypeEnum::UNCOMPRESSED;
-			break;
-		default: compressionID = CompressionTypeEnum::BC1;
-			break;
+	case DXGI_FORMAT_BC1_UNORM:
+		compressionID = CompressionTypeEnum::BC1;
+		break;
+	case DXGI_FORMAT_BC1_UNORM_SRGB:
+		compressionID = CompressionTypeEnum::BC1_SRGB;
+		break;
+	case DXGI_FORMAT_BC3_UNORM:
+		compressionID = CompressionTypeEnum::BC3;
+		break;
+	case DXGI_FORMAT_BC3_UNORM_SRGB:
+		compressionID = CompressionTypeEnum::BC3_SRGB;
+		break;
+	case DXGI_FORMAT_BC6H_UF16:
+		if (globalParams->fast_bc67)
+			compressionID = CompressionTypeEnum::BC6H_FAST;
+		else
+			compressionID = CompressionTypeEnum::BC6H_FINE;
+		break;
+	case DXGI_FORMAT_BC7_UNORM:
+		if (globalParams->fast_bc67)
+			compressionID = CompressionTypeEnum::BC7_FAST;
+		else
+			compressionID = CompressionTypeEnum::BC7_FINE;
+		break;
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		if (globalParams->fast_bc67)
+			compressionID = CompressionTypeEnum::BC7_SRGB_FAST;
+		else
+			compressionID = CompressionTypeEnum::BC7_SRGB_FINE;
+		break;
+	case DXGI_FORMAT_BC4_UNORM:
+		compressionID = CompressionTypeEnum::BC4;
+		break;
+	case DXGI_FORMAT_BC5_UNORM:
+		compressionID = CompressionTypeEnum::BC5;
+		break;
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		compressionID = CompressionTypeEnum::UNCOMPRESSED;
+		break;
+	default: compressionID = CompressionTypeEnum::BC1;
+		break;
 	}
 
 	//Iteration over all available compression for this texture type and find the compression combobox index.
 	//Compression types which are not available are not show in the combo box, therefore the index is not incremented if matrix is false
-	for (int i=0; i<CompressionTypeEnum::COMPRESSION_TYPE_COUNT; i++)
+	for (int i = 0; i < CompressionTypeEnum::COMPRESSION_TYPE_COUNT; i++)
 	{
 		//If this compression mode is available for this texture type
 		if (IntelPlugin::IsCombinationValid(globalParams->TextureTypeIndex, static_cast<CompressionTypeEnum>(i)))
 		{
 			//If its the selected encoding and this encoding is available then break out
-			if (i == compressionID )
+			if (i == compressionID)
 				break;
-		
+
 			CompressionTypeIndex++;
 		}
 	}
 
 	mDialogData.CompressionTypeIndex = CompressionTypeIndex;
 	mDialogData.TextureTypeIndex = globalParams->TextureTypeIndex;  //Col,Col+alpha,CubeFrmLayera,CubefromCross,NM
-	mDialogData.MipMapTypeIndex  = globalParams->MipMapTypeIndex;   //None,Autogen,FromLayers
-	mDialogData.MipLevel         = globalParams->MipLevel;			// only valid if SetMipLevel == true
-	mDialogData.SetMipLevel   = globalParams->SetMipLevel;
-	mDialogData.Normalize     = globalParams->Normalize;
-	mDialogData.FlipX         = globalParams->FlipX;
-	mDialogData.FlipY         = globalParams->FlipY;
+	mDialogData.MipMapTypeIndex = globalParams->MipMapTypeIndex;   //None,Autogen,FromLayers
+	mDialogData.MipLevel = globalParams->MipLevel;			// only valid if SetMipLevel == true
+	mDialogData.SetMipLevel = globalParams->SetMipLevel;
+	mDialogData.Normalize = globalParams->Normalize;
+	mDialogData.FlipX = globalParams->FlipX;
+	mDialogData.FlipY = globalParams->FlipY;
 }
 
 // ===========================================================================
@@ -309,13 +309,13 @@ void OptionsDialog::InitComboItems()
 void OptionsDialog::LoadPresets(void)
 {
 	mPresets.clear();
-	
+
 	//List all prest files 
-	string fullPath = mPathToPresetDirectory+"*.preset";
+	wstring fullPath = mPathToPresetDirectory + L"*.preset";
 
 	// Find the first file in the directory.
-	WIN32_FIND_DATA ffd;
-	HANDLE hFind = FindFirstFile(fullPath.c_str(), &ffd);
+	WIN32_FIND_DATAW ffd;
+	HANDLE hFind = FindFirstFileW(fullPath.c_str(), &ffd);
 
 	if (INVALID_HANDLE_VALUE == hFind)
 	{
@@ -323,17 +323,17 @@ void OptionsDialog::LoadPresets(void)
 	}
 
 	// Walk the list of files in the dir that match our pattern and add the names to our list, skipping  the 'none' preset file (handled separately).
-	list<string> fileNames;
+	list<wstring> fileNames;
 
 	do
 	{
 		if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
 		{
-			string fname(ffd.cFileName);
+			wstring fname(ffd.cFileName);
 			fileNames.push_back(fname);
 		}
 
-	} while (FindNextFile(hFind, &ffd) != 0);
+	} while (FindNextFileW(hFind, &ffd) != 0);
 
 
 	DWORD dwError = GetLastError();
@@ -347,7 +347,7 @@ void OptionsDialog::LoadPresets(void)
 	// Now, read the rest of the files and load up the presets menu with them.
 	for (auto it = fileNames.begin(); it != fileNames.end(); ++it)
 	{
-		string presetPath = mPathToPresetDirectory + *it;
+		wstring presetPath = mPathToPresetDirectory + *it;
 		ReadPreset(presetPath);
 	}
 }
@@ -355,10 +355,12 @@ void OptionsDialog::LoadPresets(void)
 // ===========================================================================
 
 //Fills in the DialogData structs which are stored in the mPresets array
-void OptionsDialog::ReadPreset(string fname)
+void OptionsDialog::ReadPreset(wstring fname)
 {
 	ifstream fileIn;
 	fileIn.open(fname);
+
+	std::filesystem::path p(fname);
 
 	if (fileIn.is_open())
 	{
@@ -367,57 +369,50 @@ void OptionsDialog::ReadPreset(string fname)
 
 		DialogData dd;
 
-		size_t foundBSlash = fname.rfind("\\");
-		string justName = fname;
+		size_t foundBSlash = fname.rfind(L"\\");
+		wstring justName = fname;
 
 		if (foundBSlash != string::npos)
 		{
-			justName = fname.substr(foundBSlash+1);
+			justName = fname.substr(foundBSlash + 1);
 		}
 		else
 		{
-			size_t foundFSlash = fname.rfind("/");	// handle those other OSes.
+			size_t foundFSlash = fname.rfind(L"/");	// handle those other OSes.
 			if (foundFSlash != string::npos)
 			{
-				justName = fname.substr(foundFSlash+1);
+				justName = fname.substr(foundFSlash + 1);
 			}
 		}
 
-		size_t foundDot = justName.rfind(".");
+		size_t foundDot = justName.rfind(L".");
 
-		if (foundDot != string::npos)
-		{
-			dd.PresetName = justName.substr(0, foundDot);
-		}
-		else
-		{
-			dd.PresetName = justName;
-		}
+		dd.PresetName = p.filename().replace_extension(L"").string();
 
-		try 
+		try
 		{
 			while (getline(fileIn, line))
 			{
 				bool done = false;
-				switch (lineNum-1)
+				switch (lineNum - 1)
 				{
-					case -1: if (atoi(line.c_str()) != PRESET_FILE_VERSION)		// version check
-							 throw std::exception();
+				case -1: if (atoi(line.c_str()) != PRESET_FILE_VERSION)		// version check
+					throw std::exception();
 
-					case 0: dd.CompressionTypeIndex = atoi(line.c_str());    break;
-					case 1: dd.TextureTypeIndex = static_cast<TextureTypeEnum>(atoi(line.c_str()));        break;
-					case 2: dd.MipMapTypeIndex =  static_cast<MipmapEnum>(atoi(line.c_str()));         break;
-					case 3: dd.MipLevel = atoi(line.c_str());                break;
-					case 4: dd.SetMipLevel = atoi(line.c_str()) == 1;        break;
-					case 5: dd.Normalize = atoi(line.c_str()) == 1;          break;
-					case 6: dd.FlipX = atoi(line.c_str()) == 1;              break;
+				case 0: dd.CompressionTypeIndex = atoi(line.c_str());    break;
+				case 1: dd.TextureTypeIndex = static_cast<TextureTypeEnum>(atoi(line.c_str()));        break;
+				case 2: dd.MipMapTypeIndex = static_cast<MipmapEnum>(atoi(line.c_str()));         break;
+				case 3: dd.MipLevel = atoi(line.c_str());                break;
+				case 4: dd.SetMipLevel = atoi(line.c_str()) == 1;        break;
+				case 5: dd.Normalize = atoi(line.c_str()) == 1;          break;
+				case 6: dd.FlipX = atoi(line.c_str()) == 1;              break;
 
-					case 7: dd.FlipY = atoi(line.c_str()) == 1;
-						done = true;
-						break;
+				case 7: dd.FlipY = atoi(line.c_str()) == 1;
+					done = true;
+					break;
 
-					default:
-						done = true;
+				default:
+					done = true;
 				}
 
 				++lineNum;
@@ -437,7 +432,7 @@ void OptionsDialog::ReadPreset(string fname)
 				mPresets[dd.PresetName] = dd;
 			}
 		}
-		catch (std::exception &)
+		catch (std::exception&)
 		{
 			// bad settings read
 		}
@@ -456,11 +451,12 @@ void OptionsDialog::SaveNewPreset(string presetName, DialogData dd)
 	dd.PresetName = presetName;
 
 	//path to new preset file
-	string fullPath = mPathToPresetDirectory + presetName + ".preset";
+	std::filesystem::path fullPath(mPathToPresetDirectory);
+	fullPath.append(presetName + ".preset");
 
 	ofstream fileOut;
 	fileOut.open(fullPath);
-	
+
 	if (fileOut.is_open())
 	{
 		fileOut << PRESET_FILE_VERSION << "\n";
@@ -478,7 +474,7 @@ void OptionsDialog::SaveNewPreset(string presetName, DialogData dd)
 	else
 	{
 		fileWriteSucceeded = false;
-		errorMessage("Can not save "+fullPath, "Preset save erorr");
+		errorMessage("Can not save " + fullPath.string(), "Preset save erorr");
 	}
 
 
@@ -499,12 +495,12 @@ void OptionsDialog::SaveNewPreset(string presetName, DialogData dd)
 		mDialogData.PresetName = presetName;
 
 		// rebuild combo items data list for presets
-		ComboData & cd = gComboItems[PRESETS_COMBO];		
+		ComboData& cd = gComboItems[PRESETS_COMBO];
 		cd.itemAndContextStrings.clear();
 		GetPresetNames(cd);
 
 		// rebuild combobox for presets -- making sure it has the right selected item (newly created preset)
-		InitComboFromItems(PRESETS_COMBO);							
+		InitComboFromItems(PRESETS_COMBO);
 
 		// Update UI to reflect new Preset.
 		SetUIFromData();
@@ -514,13 +510,14 @@ void OptionsDialog::SaveNewPreset(string presetName, DialogData dd)
 void OptionsDialog::UpdatePreset(string presetName, DialogData dd)
 {
 	dd.PresetName = presetName;
-	
+
 	//path to existing preset file
-	string fullPath = mPathToPresetDirectory + presetName + ".preset";
+	std::filesystem::path fullPath(mPathToPresetDirectory);
+	fullPath.append(presetName + ".preset");
 
 	ofstream fileOut;
 	fileOut.open(fullPath);
-	
+
 	//Save change into preset file
 	if (fileOut.is_open())
 	{
@@ -538,7 +535,7 @@ void OptionsDialog::UpdatePreset(string presetName, DialogData dd)
 	}
 	else
 	{
-		errorMessage("Can not save "+fullPath, "Preset save erorr");
+		errorMessage("Can not save " + fullPath.string(), "Preset save erorr");
 	}
 
 	//Save change also into mPresets array
@@ -552,7 +549,7 @@ void OptionsDialog::DeletePreset(string presetName)
 	if (mPresets.erase(presetName))
 	{
 		// rebuild combo items data list for presets
-		ComboData & cd = gComboItems[PRESETS_COMBO];
+		ComboData& cd = gComboItems[PRESETS_COMBO];
 		cd.itemAndContextStrings.clear();
 		GetPresetNames(cd);
 
@@ -563,20 +560,21 @@ void OptionsDialog::DeletePreset(string presetName)
 		SetUIFromData();
 
 		//path to presets file
-		string fullPath = mPathToPresetDirectory + presetName + ".preset";
+		std::filesystem::path fullPath(mPathToPresetDirectory);
+		fullPath.append(presetName + ".preset");
 
-		BOOL fileDeleted = DeleteFile(fullPath.c_str());
+		BOOL fileDeleted = DeleteFileW(fullPath.c_str());
 
 		if (!fileDeleted)
 		{
-			errorMessage("Can not delete "+fullPath, "Preset delete erorr");
+			errorMessage("Can not delete " + fullPath.string(), "Preset delete erorr");
 		}
 	}
 }
 
 // ===========================================================================
 // Initialize a DialogData structure (dd) with default settings
-void OptionsDialog::InitDataNoPreset(DialogData & dd)
+void OptionsDialog::InitDataNoPreset(DialogData& dd)
 {
 	dd.PresetName = LAST_SETTINGS_PRESET_NAME;
 	dd.CompressionTypeIndex = 0;
@@ -606,7 +604,7 @@ void OptionsDialog::InitDataFromPreset(string presetName)
 //Fill now the combo controls with the strings stored in the ComboData structs
 void OptionsDialog::InitComboFromItems(int32 comboItemsIndex)
 {
-	ComboData & cd = gComboItems[comboItemsIndex];
+	ComboData& cd = gComboItems[comboItemsIndex];
 
 	PIComboBox combo = GetItem(cd.itemNum);
 	combo.Clear();
@@ -644,7 +642,7 @@ void OptionsDialog::SetFontCompressionCombo()
 	PIComboBox comboCompression = GetItem(IDC_COMPRESSION_COMBO);
 	PIComboBox comboTexType = GetItem(IDC_TEXTURETYPE_COMBO);
 	PIComboBox comboMipMap = GetItem(IDC_MIPMAP_COMBO);
-	
+
 	LOGFONT lf = {}; // to define the font
 	lf.lfHeight = 14;
 	//lf.lfWidth = ;
@@ -654,9 +652,9 @@ void OptionsDialog::SetFontCompressionCombo()
 	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 	lf.lfQuality = PROOF_QUALITY;
 	lf.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
-	strcpy(lf.lfFaceName,"Consolas");
+	strcpy(lf.lfFaceName, "Consolas");
 
-	if (auto hFont  = ::CreateFontIndirect(&lf))
+	if (auto hFont = ::CreateFontIndirect(&lf))
 	{
 		SendMessage(comboCompression.GetItem(), WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
 		SendMessage(comboTexType.GetItem(), WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
@@ -676,12 +674,12 @@ void OptionsDialog::Init(void)
 	//If not presets directory return with error
 	if (mPathToPresetDirectory.empty())
 		return;
-	
+
 	InitDataNoPreset(mDialogData);	// sets defaults, may be overridden in next call
 
 	LoadPresets();
 
-	
+
 	//Fills in gComboItems array for Presets, Compression, Textype, and MipMap generation
 	InitComboItems();
 
@@ -707,7 +705,7 @@ void OptionsDialog::Init(void)
 		PIComboBox mipLevelCombo = GetItem(IDC_MIPLEVEL_COMBO);
 		mipLevelCombo.Clear();
 	}
-	
+
 	PICheckBox normalizeCheck = GetItem(IDC_NORMALIZE_CHECK);
 	normalizeCheck.SetChecked(mDialogData.Normalize);
 
@@ -726,7 +724,7 @@ void OptionsDialog::Init(void)
 void OptionsDialog::SetUIFromData()
 {
 	//Change entries in compression/mipmap combo based on texture type
-    UpdateCompressionCombo();
+	UpdateCompressionCombo();
 	UpdateMipMapCombo();
 
 	//Initialize compression combo from mDialogData.CompressionTypeIndex
@@ -804,7 +802,7 @@ void OptionsDialog::Notify(int index)
 	{
 		if (index == gComboContextItems[i].itemNum)
 		{
-	        //Update context string based on selected entry
+			//Update context string based on selected entry
 			SetContextString(gComboContextItems[i].contextItemNum, index);
 			break;		// no return - want this to fall through to the end block that backs up the change.
 		}
@@ -825,7 +823,7 @@ void OptionsDialog::Notify(int index)
 		}
 		// no return - want this to fall through to the end block that backs up the change.
 	}
-	
+
 	//Change preset, preset combo whas changed
 	if (index == IDC_PRESET_COMBO)
 	{
@@ -841,7 +839,7 @@ void OptionsDialog::Notify(int index)
 			if (selectedItem.compare(mDialogData.PresetName) != 0)
 			{
 				//Store changes in current preset before swapping
-				
+
 #ifdef AUTO_SAVE_PRESETS
 				UpdatePreset(mDialogData.PresetName, mDialogData);
 #endif
@@ -851,7 +849,7 @@ void OptionsDialog::Notify(int index)
 
 				//Update UI from struct
 				SetUIFromData();
-			
+
 				// If we want a callback or notify that a preset has changed, here is where to place that call.
 			}
 		}
@@ -875,7 +873,7 @@ void OptionsDialog::Notify(int index)
 		ss << "Are you sure you want to delete the preset: " << selectedPreset << "?";
 
 		int delResult = MessageBox(GetActiveWindow(), ss.str().c_str(), "Delete Preset", MB_OKCANCEL);
-		
+
 		if (delResult == IDOK)
 		{
 			DeletePreset(selectedPreset);
@@ -913,7 +911,7 @@ void OptionsDialog::Notify(int index)
 
 		return;
 	}
-	
+
 	if (index == IDC_PREVIEW_BUTTON)
 	{
 		//Copy over UI to global struct for preview routined
@@ -922,7 +920,7 @@ void OptionsDialog::Notify(int index)
 		//Show previewUI (modal does not return until OK is pressed)
 		PreviewDialog dlg(plugin);
 		dlg.Modal();
-		
+
 		//Copy any changes back into UI struct (preview can change compression)
 		GetGlobalStruct();
 
@@ -949,7 +947,7 @@ void OptionsDialog::Notify(int index)
 			//Update currently set preset and none preset so that it remember the next time it loads
 
 #ifdef AUTO_SAVE_PRESETS
-				UpdatePreset(mDialogData.PresetName, mDialogData);
+			UpdatePreset(mDialogData.PresetName, mDialogData);
 #endif
 
 			UpdatePreset(LAST_SETTINGS_PRESET_NAME, mDialogData);
@@ -978,7 +976,7 @@ void OptionsDialog::Notify(int index)
 
 // ===========================================================================
 // Interrogate the state of the UI elements to find their current selections and copy that into the specified DialogData struct (dd)
-void OptionsDialog::ExtractDataFromUI(DialogData & dd)
+void OptionsDialog::ExtractDataFromUI(DialogData& dd)
 {
 	dd.CompressionTypeIndex = GetSelectedItem(IDC_COMPRESSION_COMBO);
 	dd.TextureTypeIndex = static_cast<TextureTypeEnum>(GetSelectedItem(IDC_TEXTURETYPE_COMBO));
@@ -1034,7 +1032,7 @@ void OptionsDialog::DisableUnavailableControls()
 	}
 
 	//if texture type is/isnot cubemap then enable/disable combo+checkbox
-	if (mDialogData.TextureTypeIndex != TextureTypeEnum::CUBEMAP_CROSSED && 
+	if (mDialogData.TextureTypeIndex != TextureTypeEnum::CUBEMAP_CROSSED &&
 		mDialogData.TextureTypeIndex != TextureTypeEnum::CUBEMAP_LAYERS)
 	{
 		//disable miplevel checkbox and combo
@@ -1050,7 +1048,7 @@ void OptionsDialog::DisableUnavailableControls()
 		::EnableWindow(MipLevelCheck.GetItem(), true);
 		::EnableWindow(combo.GetItem(), true);
 	}
-	
+
 }
 
 //Update compression combo box based on textyreType. Convenience funtion
@@ -1058,7 +1056,7 @@ void OptionsDialog::UpdateCompressionCombo()
 {
 	//Fill new entries into struct
 	GetCompressionNames(gComboItems[COMPRESSION_COMBO]);
-	
+
 	//Clear and fill combo box from struct
 	InitComboFromItems(COMPRESSION_COMBO);
 }
@@ -1068,14 +1066,14 @@ void OptionsDialog::UpdateMipMapCombo()
 {
 	//Fill new entries into struct
 	GetMipMapNames(gComboItems[MIPMAP_COMBO]);
-	
+
 	//Clear and fill combo box from struct
 	InitComboFromItems(MIPMAP_COMBO);
 }
 
 // ===========================================================================
 // Populate the data struct for the Presets dropdown list - uses the mPresets filled in from LoadPresets().
-void OptionsDialog::GetPresetNames(ComboData & comboItem)
+void OptionsDialog::GetPresetNames(ComboData& comboItem)
 {
 	comboItem.startIndex = -1;
 	comboItem.itemAndContextStrings.clear();
@@ -1087,57 +1085,57 @@ void OptionsDialog::GetPresetNames(ComboData & comboItem)
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext(it->first, ""));
 		if (it->first.compare(mDialogData.PresetName) == 0)
 		{
-			comboItem.startIndex = static_cast<uint32>(comboItem.itemAndContextStrings.size()-1);
+			comboItem.startIndex = static_cast<uint32>(comboItem.itemAndContextStrings.size() - 1);
 		}
 	}
 }
 
 // ===========================================================================
 
-void OptionsDialog::GetCompressionNames(ComboData & comboItem)
+void OptionsDialog::GetCompressionNames(ComboData& comboItem)
 {
 	comboItem.itemAndContextStrings.clear();
 
 	//BC1, BC1_SRGB, BC3, BC3_SRGB, BC6H_FAST, BC6H_FINE, BC7_FAST, BC7_FINE, BC7_SRGB_FAST, BC7_SRGB_FINE, BC4, BC5, NONE
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC1))
-	    comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC1   4bpp  (Linear)", "Also DXT1. Maximum compatibility. No Alpha Channel", CompressionTypeEnum::BC1));
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC1))
+		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC1   4bpp  (Linear)", "Also DXT1. Maximum compatibility. No Alpha Channel", CompressionTypeEnum::BC1));
 
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC1_SRGB))
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC1_SRGB))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC1   4bpp  (sRGB, DX10+)", "No Alpha Channel. Use SRGB gamma.", CompressionTypeEnum::BC1_SRGB));
 
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC3))
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC3))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC3   8bpp  (Linear)", "Also DXT5. Maximum compatibility. Supports Alpha.", CompressionTypeEnum::BC3));
 
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC3_SRGB))
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC3_SRGB))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC3   8bpp  (sRGB, DX10+)", "Supports Alpha. Use sRGB gamma.", CompressionTypeEnum::BC3_SRGB));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC6H_FAST))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC6H_FAST))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC6H  8bpp  Fast (Linear, DX11+)", "16 bit HDR images. No alpha. Only DX11+ level H/W. Fast Intel compression settings.", CompressionTypeEnum::BC6H_FAST));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC6H_FINE))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC6H_FINE))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC6H  8bpp  Fine (Linear, DX11+)", "16 bit HDR images. No alpha. Only DX11+ level H/W. Fine Intel compression settings.", CompressionTypeEnum::BC6H_FINE));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC7_FAST))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC7_FAST))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC7   8bpp  Fast (Linear, DX11+)", "Best quality. Supports Alpha. Only DX11+ level H/W. Fast Intel compression settings.", CompressionTypeEnum::BC7_FAST));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC7_FINE))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC7_FINE))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC7   8bpp  Fine (Linear, DX11+)", "Best quality. Supports Alpha. Only DX11+ level H/W. Fine Intel compression settings.", CompressionTypeEnum::BC7_FINE));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC7_SRGB_FAST))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC7_SRGB_FAST))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC7   8bpp  Fast (sRGB, DX11+)", "Best quality. Supports Alpha. Only DX11+ level H/W. Fast Intel compression settings. Use sRGB gamma.", CompressionTypeEnum::BC7_SRGB_FAST));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC7_SRGB_FINE))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC7_SRGB_FINE))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC7   8bpp  Fine (sRGB, DX11+)", "Best quality. Supports Alpha. Only DX11+ level H/W. Fine Intel compression settings. Use sRGB gamma.", CompressionTypeEnum::BC7_SRGB_FINE));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC4))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC4))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC4   4bpp  (Linear, Grayscale)", "For Grayscale images, smallest size. Only the first image channel is used.", CompressionTypeEnum::BC4));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::BC5))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::BC5))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("BC5   8bpp  (Linear, 2 Channel tangent map)", "Use for Normalmap encoding. Best quality. Only the first two image channels are used.", CompressionTypeEnum::BC5));
-	
-	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex,CompressionTypeEnum::UNCOMPRESSED))
+
+	if (IntelPlugin::IsCombinationValid(mDialogData.TextureTypeIndex, CompressionTypeEnum::UNCOMPRESSED))
 		comboItem.itemAndContextStrings.push_back(ComboItemAndContext("none  32bpp", "Lossless, no compression applied.", CompressionTypeEnum::UNCOMPRESSED));
-	
+
 	if (mDialogData.CompressionTypeIndex < comboItem.itemAndContextStrings.size())
 	{
 		comboItem.startIndex = mDialogData.CompressionTypeIndex;
@@ -1150,7 +1148,7 @@ void OptionsDialog::GetCompressionNames(ComboData & comboItem)
 
 // ===========================================================================
 
-void OptionsDialog::GetTextureTypeNames(ComboData & comboItem)
+void OptionsDialog::GetTextureTypeNames(ComboData& comboItem)
 {
 	comboItem.itemAndContextStrings.push_back(ComboItemAndContext("Color", "Export only the RGB channels."));
 	comboItem.itemAndContextStrings.push_back(ComboItemAndContext("Color + Alpha", "Export RGB and alpha channel."));
@@ -1170,7 +1168,7 @@ void OptionsDialog::GetTextureTypeNames(ComboData & comboItem)
 
 // ===========================================================================
 
-void OptionsDialog::GetMipMapNames(ComboData & comboItem)
+void OptionsDialog::GetMipMapNames(ComboData& comboItem)
 {
 	comboItem.itemAndContextStrings.clear();
 
@@ -1205,7 +1203,7 @@ void OptionsDialog::PopulateMipLevelsCombo()
 		s << i;
 		mipLevelCombo.AppendItem(s.str().c_str());
 	}
-	
+
 	uint32 selectedIndex = mDialogData.MipLevel;	// Convert level to index
 	mipLevelCombo.SetCurrentSelection(selectedIndex);
 }
@@ -1223,7 +1221,7 @@ BC3:  Also known as DXT5.  Uses 8 bits per pixel and contains RGBA types of data
 BC4:  Uses 4 bits per pixel and contains grey-scale types of data.  Useful for height maps, gloss maps, font atlases or any other grey-scale image.\n\n\
 BC5:  Uses 8 bits per pixel and contains 2 x grey-scale types of data.  Useful for tangent space normal maps.\n\n\
 BC6:  Uses 8 bits per pixel and contains RGB floating point types of data. Useful for HDR 16 images but works only on DX11+ level hardware.\n\n\
-BC7:  Uses 8 bits per pixel and contains RGBA types of data.  Useful for high quality color maps, color maps with full alpha.  It provides the best quality compression ratio but needs DX11+ level hardware.");		
+BC7:  Uses 8 bits per pixel and contains RGBA types of data.  Useful for high quality color maps, color maps with full alpha.  It provides the best quality compression ratio but needs DX11+ level hardware.");
 
 	vs.push_back("Compression Options");		// Window Caption
 
@@ -1302,7 +1300,7 @@ void OptionsDialog::SetContextString(uint32 contextStringID, uint32 index)
 
 	//Get the index straight from control
 	int combo_index = int(SendMessage(combo.GetItem(), CB_GETCURSEL, 0, 0));
-	
+
 	// find the struct with the combo box data for the selected combo box
 	// search the array where cobo items are stored
 	for (uint32 j = 0; j < gComboItems.size(); ++j)
@@ -1337,7 +1335,7 @@ uint32 OptionsDialog::GetSelectedMipLevelIndex()
 
 	// Could replace atoi() call with a struct to track the values pushed into the dropdown, or a GetSelectedIndex() function on the PIComboBox itself.
 	int mipLevelValue = atoi(selectedText.c_str());
-	
+
 	return mipLevelValue;
 }
 
@@ -1345,7 +1343,7 @@ int32 OptionsDialog::DoModal(IntelPlugin* plugin)
 {
 	OptionsDialog dialog(plugin);
 	int32 id = IDOK;
-	
+
 	if (plugin->GetData()->queryForParameters)
 	{
 		//Interactive mode, show UI
@@ -1354,13 +1352,13 @@ int32 OptionsDialog::DoModal(IntelPlugin* plugin)
 	else
 	{
 		//presetBatchName is a PString (first byte is the size)
-		string presetStringname = reinterpret_cast<char *>(plugin->GetData()->presetBatchName)+1;
+		string presetStringname = reinterpret_cast<char*>(plugin->GetData()->presetBatchName) + 1;
 
 		//Load preset without UI
-		id = dialog.LoadPresetNonUIMode(presetStringname)?1:2;
+		id = dialog.LoadPresetNonUIMode(presetStringname) ? 1 : 2;
 	}
 
-	if (id == IDOK)		
+	if (id == IDOK)
 	{
 		//Fill gloabl struct with UI info
 		dialog.FillGlobalStruct();

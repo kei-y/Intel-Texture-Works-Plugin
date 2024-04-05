@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Copyright 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -44,7 +44,7 @@ struct DialogData
 };
 
 // Our main class - handles creation of and all input to the Export dialog UI.
-class OptionsDialog : public PIDialog 
+class OptionsDialog : public PIDialog
 {
 private:
 	// Struct to hold a dropdown list item and the corresponding context info for it. 
@@ -56,7 +56,7 @@ private:
 		string itemContextInfo;
 		int    itemUserData;
 
-		ComboItemAndContext(string text, string contextInfo, int userData=0) : itemText(text), itemContextInfo(contextInfo), itemUserData(userData) { }
+		ComboItemAndContext(string text, string contextInfo, int userData = 0) : itemText(text), itemContextInfo(contextInfo), itemUserData(userData) { }
 	};
 
 
@@ -67,39 +67,39 @@ private:
 		uint32 startIndex;									// Which item in the dropdown to select when creating the list - 0 unless a preset is being loaded.
 		vector<ComboItemAndContext> itemAndContextStrings;	// list of strings and any corresponding context info for the dropdown list (context could be blank)
 
-		explicit  ComboData(int num) : itemNum(num)  { }
+		explicit  ComboData(int num) : itemNum(num) { }
 	};
-	
-	enum {PRESETS_COMBO, COMPRESSION_COMBO, TEXTURETYPE_COMBO, MIPMAP_COMBO, NUMBEROF_COMBOS};
 
-    IntelPlugin* plugin;              //Pointer to photoshop API
-    IntelPlugin::Globals* globalParams;              //Pointer to photoshop API
+	enum { PRESETS_COMBO, COMPRESSION_COMBO, TEXTURETYPE_COMBO, MIPMAP_COMBO, NUMBEROF_COMBOS };
+
+	IntelPlugin* plugin;              //Pointer to photoshop API
+	IntelPlugin::Globals* globalParams;              //Pointer to photoshop API
 	DialogData mDialogData;			// Current working data set - updated based on user interaction with UI
 	map<string, DialogData> mPresets;
 
 	vector<ComboData> gComboItems;					// The master list of dropdown init data.
 
-	string mPathToPresetDirectory;
+	wstring mPathToPresetDirectory;
 	uint32 MaxMipLevel;			// based on image properties
 
 	void LoadPresets(void);
-	void ReadPreset(string fname);
+	void ReadPreset(wstring fname);
 
 	void SaveNewPreset(string presetName, DialogData dd);
 	void UpdatePreset(string presetName, DialogData dd);
 	void DeletePreset(string presetName);
 
-	void InitDataNoPreset(DialogData & dd);
+	void InitDataNoPreset(DialogData& dd);
 	void InitDataFromPreset(string presetName);
 
 	void SetUIFromData();
 
-	void ExtractDataFromUI(DialogData & dd);
-	
-	void GetPresetNames(ComboData & comboItem);
-	void GetCompressionNames(ComboData & comboItem);
-	void GetTextureTypeNames(ComboData & comboItem);
-	void GetMipMapNames(ComboData & comboItem);
+	void ExtractDataFromUI(DialogData& dd);
+
+	void GetPresetNames(ComboData& comboItem);
+	void GetCompressionNames(ComboData& comboItem);
+	void GetTextureTypeNames(ComboData& comboItem);
+	void GetMipMapNames(ComboData& comboItem);
 
 	void PopulateMipLevelsCombo();
 	void DisableUnavailableControls();
@@ -120,16 +120,16 @@ private:
 	virtual void Init(void) override;
 	virtual void Notify(int32 item) override;
 
-	double Log2( double n );
-		
+	double Log2(double n);
+
 public:
 	explicit  OptionsDialog(IntelPlugin* globals);
 	~OptionsDialog() {}
-	
+
 	bool LoadPresetNonUIMode(string name);
 	void FillGlobalStruct();
 	void GetGlobalStruct();
-	const DialogData & GetData() const { return mDialogData; }
+	const DialogData& GetData() const { return mDialogData; }
 
 	static int32 DoModal(IntelPlugin* plugin);
 };

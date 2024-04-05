@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Copyright 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -13,11 +13,12 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 ////////////////////////////////////////////////////////////////////////////////
+#include <string>
 
 #pragma once
 
-void    ShowAboutIntel (AboutRecordPtr aboutPtr);        // Pop about box.
+void    ShowAboutIntel(AboutRecordPtr aboutPtr);        // Pop about box.
 std::string GetPresetName(std::string str, HWND parent); //Get preset name dialog
-unsigned8 ShowLoadDialog (bool showAlphaGroup, bool showMipMapGroup, HWND parent); //Load dialog
+unsigned8 ShowLoadDialog(bool showAlphaGroup, bool showMipMapGroup, HWND parent); //Load dialog
 void        errorMessage(std::string msg, std::string title); //pops a message dialog
 
