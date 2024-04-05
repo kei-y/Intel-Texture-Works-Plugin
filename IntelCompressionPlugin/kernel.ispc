@@ -14,9 +14,11 @@
 // under the License.
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef ISPC_UINT_IS_DEFINED
 typedef unsigned int8 uint8;
 typedef unsigned int32 uint32;
 typedef unsigned int64 uint64;
+#endif
 
 ///////////////////////////
 //   generic helpers

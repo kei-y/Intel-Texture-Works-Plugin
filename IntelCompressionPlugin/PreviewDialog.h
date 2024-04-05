@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Copyright 2017 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -18,6 +18,7 @@
 
 #include "IntelPlugin.h"
 
+#include <string>
 #include <vector>
 #include <list>
 
@@ -31,7 +32,7 @@ public:
 
 	double Get(double lo, double hi) const
 	{
-		return lo * (1-anchor) + hi * anchor + offset;
+		return lo * (1 - anchor) + hi * anchor + offset;
 	}
 
 	void Set(double _anchor, double _offset)
@@ -45,7 +46,7 @@ public:
 		anchor = (v - lo) / (hi - lo);
 		offset = 0;
 
-			// auto select segment to pin to here
+		// auto select segment to pin to here
 		if (anchor > 0.6666)
 			anchor = 1;
 		else if (anchor > 0.33333)
@@ -59,7 +60,7 @@ public:
 	void Set(double lo, double hi, double _anchor, double v)
 	{
 		anchor = _anchor;
-		offset = v - (lo * (1-anchor) + hi * anchor);
+		offset = v - (lo * (1 - anchor) + hi * anchor);
 	}
 };
 
@@ -91,7 +92,7 @@ public:
 };
 
 
-class PreviewDialog 
+class PreviewDialog
 {
 private:
 	HWND hDlg;
@@ -103,7 +104,7 @@ private:
 		DXGI_FORMAT format;
 		std::string formatName;
 		bool fast;
-	
+
 		CompressModesStruct(DXGI_FORMAT format_, std::string formatname_, bool fast_) : format(format_), formatName(formatname_), fast(fast_) { }
 	};
 
@@ -113,7 +114,7 @@ private:
 	//Pointer to photoshop API
 
 	IntelPlugin* plugin;
-    IntelPlugin::Globals* globalParams;              
+	IntelPlugin::Globals* globalParams;
 	const FormatRecord* formatRecord;	// data about the source image from photoshop (caution!)
 
 	//Areas in client space where the image proxies are located
@@ -126,8 +127,8 @@ private:
 	int      previewBufferHeight;
 
 	//Preview buffer, just the size of the preview area
-	uint8_t  *previewBuffer;
-	uint8_t  *previewCompressedBuffer;
+	uint8_t* previewBuffer;
+	uint8_t* previewCompressedBuffer;
 
 	//Stores width,height of preview area, convenience variable
 	POINT previewAreaDimensions;
@@ -139,11 +140,11 @@ private:
 	//Offset of small preview area into larger 100% image buffer, used for panning
 	int  previewOffsetX;
 	int  previewOffsetY;
-	
+
 	int  previewSpecificChannel; //-1=RGB,0=R,1=G,2=B,3=A
 	int  previewPlanes;          //Default is RGB=3
 
-	static void RelativeScale(HWND hwnd, HWND parent_hwnd, float maxDimension,int minWidth);
+	static void RelativeScale(HWND hwnd, HWND parent_hwnd, float maxDimension, int minWidth);
 	static BOOL CALLBACK WndEnumProc(HWND, LPARAM);
 	static INT_PTR WINAPI PreviewProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam);
 	BOOL WindowProc(UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -156,25 +157,25 @@ private:
 public:
 
 	//Getter/Setters
-	void setPreviewSpecificChannel(int channel) { previewSpecificChannel=channel;}
-	void getPreviewOffset(int &X, int &Y)       { X = previewOffsetX; Y=previewOffsetY;}
-	void setPreviewOffset(int X, int Y)         { previewOffsetX = X; previewOffsetY = Y;}
-    float getCurrentZoom()                      { return previewZoom; }
-	int   getMouseStep()                        { return mouseStep;}
+	void setPreviewSpecificChannel(int channel) { previewSpecificChannel = channel; }
+	void getPreviewOffset(int& X, int& Y) { X = previewOffsetX; Y = previewOffsetY; }
+	void setPreviewOffset(int X, int Y) { previewOffsetX = X; previewOffsetY = Y; }
+	float getCurrentZoom() { return previewZoom; }
+	int   getMouseStep() { return mouseStep; }
 	bool IsSelectedEncodingDifferent(int index);
 	void SetGlobalEncoding(int index);
-									 
+
 
 	//Allocate preview buffer for this proxy area
 	void allocateBuffers();
-	
+
 	//Show main UI
 	void Modal();
 
 	//First function to call
 	void Init();
-	
-	bool ConvertToUncompressedPreviewTo8Bit(unsigned8 *tgtDataPtr, DirectX::ScratchImage *srcDataPtr, int index);
+
+	bool ConvertToUncompressedPreviewTo8Bit(unsigned8* tgtDataPtr, DirectX::ScratchImage* srcDataPtr, int index);
 	void UpdateZoomText();
 	void InvalidatePreviews(bool redraw);
 	void ClipOffsetsToBounds();

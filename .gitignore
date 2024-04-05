@@ -31,3 +31,5 @@ Plugins/
 *.aps
 *.zip
 *.tmp
+.vs/
+3rdParty/Intel/Tools/
